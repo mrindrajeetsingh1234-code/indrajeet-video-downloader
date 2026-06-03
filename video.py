@@ -9,7 +9,7 @@ CORS(app)
 
 @app.route('/', methods=['GET'])
 def index():
-    return jsonify({"message": "Cobalt API Backend is Running!"})
+    return jsonify({"message": "Cobalt Multi-Server Backend is Running!"})
 
 @app.route('/check_info', methods=['POST'])
 def check_info():
@@ -19,11 +19,11 @@ def check_info():
     if not url:
         return jsonify({"success": False, "error": "No URL provided"})
 
-    # API के लिए फेक इन्फो ताकि वेबसाइट तुरंत लोड हो और यूट्यूब ब्लॉक न करे
+    # वेबसाइट को फ़ास्ट रखने के लिए डिफ़ॉल्ट इन्फो
     return jsonify({
         "success": True,
         "title": "Video Ready To Download",
-        "thumb": "https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1000&auto=format&fit=crop", # एक बढ़िया डिफ़ॉल्ट थंबनेल
+        "thumb": "https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1000&auto=format&fit=crop",
         "qualities": ["1080p Full HD (MP4)", "720p HD (MP4)", "Audio (MP3)"]
     })
 
@@ -36,36 +36,46 @@ def download_video():
     if not url:
         return jsonify({"success": False, "error": "No URL provided"})
 
-    try:
-        is_audio = 'Audio' in quality or 'MP3' in quality
-        
-        # Cobalt API Payload
-        payload = {
-            "url": url,
-            "isAudioOnly": is_audio,
-            "aFormat": "mp3" if is_audio else "best",
-            "vQuality": "1080" if "1080" in quality else "720"
-        }
-        
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        }
-        
-        req = urllib.request.Request("https://api.cobalt.tools/api/json", data=json.dumps(payload).encode(), headers=headers)
-        
-        with urllib.request.urlopen(req) as response:
-            res_data = json.loads(response.read().decode())
-            
-            if res_data.get("status") in ["redirect", "stream", "success"]:
-                direct_link = res_data.get("url")
-                # हम सीधा डायरेक्ट लिंक भेज रहे हैं जिससे स्पीड 10x हो जाएगी!
-                return jsonify({"success": True, "direct_url": direct_link})
-            else:
-                return jsonify({"success": False, "error": res_data.get("text", "API Error")})
+    is_audio = 'Audio' in quality or 'MP3' in quality
+    
+    payload = {
+        "url": url,
+        "isAudioOnly": is_audio,
+        "aFormat": "mp3" if is_audio else "best",
+        "vQuality": "1080" if "1080" in quality else "720"
+    }
+    
+    # 🚀 असली ब्राउज़र वाला हेडर ताकि API ब्लॉक न करे
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    }
 
-    except Exception as e:
-        return jsonify({"success": False, "error": "API Servers are busy. Please try again."})
+    # 🚀 Multi-Server Fallback: अगर एक सर्वर बिजी है तो दूसरे पर जाएगा
+    COBALT_SERVERS = [
+        "https://api.cobalt.tools/api/json",
+        "https://co.wuk.sh/api/json",
+        "https://api.cobalt.ac/api/json"
+    ]
+
+    last_error = "All API Servers are currently busy. Please try after 1 minute."
+
+    for api_url in COBALT_SERVERS:
+        try:
+            req = urllib.request.Request(api_url, data=json.dumps(payload).encode(), headers=headers)
+            with urllib.request.urlopen(req, timeout=15) as response:
+                res_data = json.loads(response.read().decode())
+                
+                if res_data.get("status") in ["redirect", "stream", "success"]:
+                    return jsonify({"success": True, "direct_url": res_data.get("url")})
+                else:
+                    last_error = res_data.get("text", "API Error")
+        except Exception as e:
+            continue  # 👈 अगर सर्वर बिजी है या फेल हुआ, तो कोड रुकेगा नहीं, अगले सर्वर को ट्राई करेगा!
+
+    # अगर किस्मत बहुत ही खराब हुई और तीनों सर्वर एक साथ बिजी निकले
+    return jsonify({"success": False, "error": last_error})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
