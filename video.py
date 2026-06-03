@@ -27,10 +27,12 @@ def check_info():
         return jsonify({"success": False, "error": "No URL provided"})
 
     try:
+        # यहाँ भी कुकीज़ लगानी ज़रूरी हैं ताकि YouTube टाइटल और थंबनेल को ब्लॉक न करे
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
-            'nocheckcertificate': True
+            'nocheckcertificate': True,
+            'cookiefile': 'cookies.txt'  
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
@@ -78,12 +80,12 @@ def download_video():
         return jsonify({"success": False, "error": "No URL provided"})
 
     try:
+        # सही स्पेस और पूरी सेटिंग्स के साथ कुकीज़
         ydl_opts = {
             'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
-            'noplaylist': True,
-            'concurrent_fragment_downloads': 10,
-            'http_chunk_size': 10485760,
-            'retries': 5,
+            'cookiefile': 'cookies.txt',
+            'quiet': True,
+            'no_warnings': True,
             'nocheckcertificate': True
         }
 
