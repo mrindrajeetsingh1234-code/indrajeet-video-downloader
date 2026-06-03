@@ -27,13 +27,17 @@ def check_info():
         return jsonify({"success": False, "error": "No URL provided"})
 
     try:
-        # यहाँ भी कुकीज़ लगानी ज़रूरी हैं ताकि YouTube टाइटल और थंबनेल को ब्लॉक न करे
+        # 🚀 लेटेस्ट बायपास: Android और iOS क्लाइंट (बिना हेडर क्लैश के)
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
             'nocheckcertificate': True,
-            'cookiefile': 'cookies.txt'  
+            'geo_bypass': True,
+            'extractor_args': {
+                'youtube': ['player_client=android,ios']
+            }
         }
+        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             
@@ -80,13 +84,16 @@ def download_video():
         return jsonify({"success": False, "error": "No URL provided"})
 
     try:
-        # सही स्पेस और पूरी सेटिंग्स के साथ कुकीज़
+        # 🚀 डाउनलोड के लिए भी सेम लेटेस्ट बायपास
         ydl_opts = {
             'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
-            'cookiefile': 'cookies.txt',
             'quiet': True,
             'no_warnings': True,
-            'nocheckcertificate': True
+            'nocheckcertificate': True,
+            'geo_bypass': True,
+            'extractor_args': {
+                'youtube': ['player_client=android,ios']
+            }
         }
 
         if 'Audio' in quality or 'MP3' in quality:
