@@ -1,6 +1,9 @@
 import os
 import re
+import json
+import urllib.request
 import yt_dlp
+import io
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 
@@ -13,7 +16,7 @@ if not os.path.exists(DOWNLOAD_FOLDER):
 
 @app.route('/', methods=['GET'])
 def index():
-    return jsonify({"message": "Indrajeet Pro Backend Running! (Fast API + yt-dlp)"})
+    return jsonify({"message": "Indrajeet Pro Backend Running! (Fast API + OEmbed)"})
 
 @app.route('/check_info', methods=['POST'])
 def check_info():
@@ -21,8 +24,10 @@ def check_info():
     url = data.get('url')
     if not url: return jsonify({"success": False, "error": "No URL"})
 
+    is_youtube = 'youtube.com' in url or 'youtu.be' in url
+
     try:
-        # हमारा 5x फास्ट yt-dlp इंजन
+        # Step 1: Try normal yt-dlp first
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
@@ -36,6 +41,8 @@ def check_info():
             title = info.get('title', 'Unknown Title')
             thumb = info.get('thumbnail', '')
             description = info.get('description', '')
+            tags = info.get('tags', [])
+            tags_str = " ".join([f"#{t}" for t in tags]) if tags else ""
             
             formats = info.get('formats', [])
             live_res = set()
@@ -55,7 +62,7 @@ def check_info():
             final_qualities.extend(["Best Available", "Audio (MP3)"])
             if len(final_qualities) == 2: final_qualities = ["Best Available (.mp4)", "Audio (.mp3)"]
 
-            full_metadata = f"Title: {title}\n\nLink: {url}\n\nDescription: {description[:300]}..."
+            full_metadata = f"Title: {title}\n\nTags: {tags_str}\n\nDescription: {description[:300]}..."
 
             return jsonify({
                 "success": True,
@@ -66,14 +73,44 @@ def check_info():
             })
             
     except Exception as e:
-        # 🚀 FREE API FALLBACK: अगर यूट्यूब ने ब्लॉक किया, तो यह फ्री API चालू हो जाएगी और एरर नहीं आएगा!
-        return jsonify({
-            "success": True,
-            "title": "Video Ready To Download",
-            "thumb": "https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1000&auto=format&fit=crop",
-            "metadata": f"Link: {url}\n\nVideo is protected. High-Speed API is ready to bypass and download.",
-            "qualities": ["1080p Full HD (MP4)", "720p HD (MP4)", "Audio (MP3)"]
-        })
+        # 🚀 STEP 2 (MASTERPLAN): अगर YouTube ने Block किया, तो Official API से असली डेटा निकालेंगे!
+        if is_youtube:
+            try:
+                oembed_url = f"https://www.youtube.com/oembed?url={url}&format=json"
+                req = urllib.request.Request(oembed_url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req) as response:
+                    yt_data = json.loads(response.read().decode())
+                    real_title = yt_data.get("title", "YouTube Video")
+                    real_thumb = yt_data.get("thumbnail_url", "")
+                    author = yt_data.get("author_name", "")
+                    
+                    # कॉपी बॉक्स के लिए शानदार फॉर्मेट
+                    meta = f"Title: {real_title}\nChannel: {author}\nLink: {url}\n\n#YouTube #Video #Download"
+                    
+                    return jsonify({
+                        "success": True,
+                        "title": real_title,
+                        "thumb": real_thumb, # 100% असली थंबनेल
+                        "metadata": meta,    # 100% असली टाइटल
+                        "qualities": ["1080p Full HD (MP4)", "720p HD (MP4)", "Audio (MP3)"]
+                    })
+            except Exception as ex:
+                pass
+
+        return jsonify({"success": False, "error": "Server blocked by YouTube. Please try again."})
+
+# 🚀 NEW: थंबनेल को डिवाइस में सेव करने वाला जुगाड़ (CORS Bypass)
+@app.route('/download_thumb', methods=['POST'])
+def download_thumb():
+    img_url = request.json.get('img_url')
+    if not img_url: return jsonify({"success": False, "error": "No image URL"})
+    try:
+        req = urllib.request.Request(img_url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response:
+            image_data = response.read()
+            return send_file(io.BytesIO(image_data), mimetype='image/jpeg', as_attachment=True, download_name='Indrajeet_Thumbnail.jpg')
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route('/download', methods=['POST'])
 def download_video():
@@ -89,7 +126,7 @@ def download_video():
             'no_warnings': True,
             'nocheckcertificate': True,
             'geo_bypass': True,
-            'concurrent_fragment_downloads': 5, # 🔥 5x SPEED BOOST LAGA DIYA HAI
+            'concurrent_fragment_downloads': 5,
             'extractor_args': {'youtube': ['player_client=android,web']}
         }
         
