@@ -1,42 +1,39 @@
-import requests
+import urllib.request
 import json
+import yt_dlp
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-# ⚡ INFO FETCHER
+# ⚡ STEP 1: SMART INFO (थंबनेल के लिए भी बाईपास इस्तेमाल किया)
 @app.route('/check_info', methods=['POST'])
 def check_info():
     data = request.json
     url = data.get('url')
     if not url: return jsonify({"success": False, "error": "No URL"})
 
-    # Requests लाइब्रेरी का इस्तेमाल (ये urllib से 100 गुना ज्यादा स्टेबल है)
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-    }
-    
-    apis = ["https://api.cobalt.tools/api/json", "https://co.wuk.sh/api/json"]
-    
-    for api in apis:
-        try:
-            response = requests.post(api, json={"url": url}, headers=headers, timeout=10)
-            if response.status_code == 200:
-                res = response.json()
-                return jsonify({
-                    "success": True,
-                    "title": res.get("filename", "Video"),
-                    "thumb": res.get("thumbnail", ""),
-                    "qualities": ["1080p", "720p", "480p", "Audio (MP3)"]
-                })
-        except: continue
-    return jsonify({"success": False, "error": "Servers busy"})
+    try:
+        # थंबनेल और नाम के लिए Cobalt API का इस्तेमाल करें (क्योंकि yt-dlp ब्लॉक हो रहा है)
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        payload = json.dumps({"url": url}).encode('utf-8')
+        
+        req = urllib.request.Request("https://api.cobalt.tools/api/json", data=payload, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as response:
+            res = json.loads(response.read().decode())
+            
+            # अगर Cobalt से जानकारी मिल गई
+            return jsonify({
+                "success": True,
+                "title": res.get("filename", "YouTube Video"),
+                "thumb": res.get("thumbnail", ""),
+                "qualities": ["1080p", "720p", "480p", "Audio (MP3)"]
+            })
+    except:
+        return jsonify({"success": False, "error": "Could not fetch info. Try another link."})
 
-# ⚡ DOWNLOADER (The Final Fix)
+# ⚡ STEP 2: HYBRID DOWNLOAD (Cobalt Bypass)
 @app.route('/download', methods=['POST'])
 def download_video():
     data = request.json
@@ -44,32 +41,37 @@ def download_video():
     quality = data.get('quality', '')
     if not url: return jsonify({"success": False, "error": "No URL"})
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-    }
+    v_quality = "1080"
+    if "720" in quality: v_quality = "720"
+    elif "480" in quality: v_quality = "480"
 
-    payload = {
+    payload = json.dumps({
         "url": url,
-        "videoQuality": "1080" if "720" not in quality else "720",
+        "videoQuality": v_quality,
         "isAudioOnly": 'Audio' in quality or 'MP3' in quality,
-        "audioFormat": "mp3",
-        "filenamePattern": "classic"
+        "audioFormat": "mp3"
+    }).encode('utf-8')
+    
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
     }
 
+    # API List
     apis = ["https://api.cobalt.tools/api/json", "https://co.wuk.sh/api/json"]
-
+    
     for api in apis:
         try:
-            response = requests.post(api, json=payload, headers=headers, timeout=15)
-            if response.status_code == 200:
-                res = response.json()
+            req = urllib.request.Request(api, data=payload, headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as response:
+                res = json.loads(response.read().decode())
                 if "url" in res:
                     return jsonify({"success": True, "direct_url": res["url"]})
-        except: continue
+        except:
+            continue
 
-    return jsonify({"success": False, "error": "Servers busy, please wait 30 seconds."})
+    return jsonify({"success": False, "error": "Servers are busy. Try after 10 seconds."})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000)\';[p
