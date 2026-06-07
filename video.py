@@ -23,14 +23,14 @@ def check_info():
 
     try:
         ydl_opts = {
+            'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
             'quiet': True, 
-            'no_warnings': True, 
             'nocheckcertificate': True, 
             'geo_bypass': True,
-            'noplaylist': True,           
-            'extract_flat': 'in_playlist',
-            # 🔥 सबसे बड़ा हथियार: यह आपके असली Chrome ब्राउज़र से कुकीज़ खुद निकाल लेगा!
-            'cookiesfrombrowser': ('chrome',), 
+            'noplaylist': True,
+            'concurrent_fragment_downloads': 10, 
+            'retries': 5, 
+            # DHYAN DEIN: Chrome browser wali line yahan se hata di gayi hai
             'extractor_args': {
                 'youtube': ['player_client=ios,android,tv,web']
             },
@@ -38,6 +38,10 @@ def check_info():
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
         }
+
+        # Ye line aapki upload ki hui cookies.txt ko apne aap use kar legi
+        if os.path.exists("cookies.txt"):
+            ydl_opts['cookiefile'] = 'cookies.txt'
 
         # 🍪 अगर आपने cookies.txt फाइल बनाई है, तो यह ऑटोमैटिक उसे यूज़ कर लेगा (बिना क्रैश हुए)
         if os.path.exists("cookies.txt"):
