@@ -29,11 +29,14 @@ def check_info():
         return jsonify({"success": False, "error": "No URL provided"})
 
     try:
-        ydl_opts = {
-            'quiet': True,
-            'no_warnings': True,
-            'nocheckcertificate': True
-        }
+       YDL_OPTS = {
+    'quiet': True,
+    'no_warnings': True,
+    'noplaylist': True,
+    'format': 'best',
+    'extractor_args': {'youtube': ['player_client=android']},
+    'user_agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36'
+}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
 
