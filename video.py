@@ -1,7 +1,7 @@
 import os
 import urllib.request
 import json
-import re  # 🔥 नया इंपोर्ट (ID निकालने के लिए)
+import re
 import yt_dlp
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -52,10 +52,8 @@ def check_info():
                 "qualities": final_qualities
             })
     except Exception as e:
-        # 🔥 SMART INFO BYPASS: अगर YouTube ब्लॉक करे, तो हमारा कोड हार नहीं मानेगा!
         if "youtube" in url or "youtu.be" in url:
             video_id = ""
-            # लिंक से सीधे Video ID निकालो
             match = re.search(r"(?:v=|/)([0-9A-Za-z_-]{11})", url)
             if match: video_id = match.group(1)
             
@@ -64,12 +62,11 @@ def check_info():
                 "title": "YouTube Video (Secured Download)",
                 "thumb": f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg" if video_id else "",
                 "metadata": f"Link: {url}\n\nNote: Security Bypass Active.",
-                "qualities": ["1080p", "720p", "480p", "Audio (MP3)"] # डिफ़ॉल्ट क्वालिटी ऑप्शंस
+                "qualities": ["1080p", "720p", "480p", "Audio (MP3)"]
             })
-        
         return jsonify({"success": False, "error": str(e)})
 
-# ⚡ STEP 2: DIRECT FAST DOWNLOAD (BYPASSING SERVER)
+# ⚡ STEP 2: DIRECT FAST DOWNLOAD
 @app.route('/download', methods=['POST'])
 def download_video():
     data = request.json
@@ -79,45 +76,42 @@ def download_video():
     if not url: return jsonify({"success": False, "error": "No URL"})
 
     is_audio = 'Audio' in quality or 'MP3' in quality
-    
     v_quality = "1080"
     if "720" in quality: v_quality = "720"
     elif "480" in quality: v_quality = "480"
 
-    try:
-        headers = {
-            "Accept": "application/json", 
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0"
-        }
-        payload = json.dumps({
-            "url": url, 
-            "vQuality": v_quality, 
-            "isAudioOnly": is_audio, 
-            "aFormat": "mp3"
-        }).encode('utf-8')
-        
-        # 🚀 FAST API 1: Cobalt Main
-        req1 = urllib.request.Request("https://api.cobalt.tools/api/json", data=payload, headers=headers)
-        with urllib.request.urlopen(req1, timeout=8) as response:
-            res = json.loads(response.read().decode())
-            if "url" in res:
-                return jsonify({"success": True, "direct_url": res["url"]})
-    except:
-        pass 
+    payload = json.dumps({
+        "url": url, 
+        "videoQuality": v_quality, 
+        "isAudioOnly": is_audio, 
+        "audioFormat": "mp3",
+        "filenamePattern": "classic"
+    }).encode('utf-8')
+    
+    headers = {
+        "Accept": "application/json", 
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0"
+    }
 
-    try:
-        # 🚀 FAST API 2: Wuk.sh (Backup)
-        req2 = urllib.request.Request("https://co.wuk.sh/api/json", data=payload, headers=headers)
-        with urllib.request.urlopen(req2, timeout=8) as response:
-            res = json.loads(response.read().decode())
-            if "url" in res:
-                return jsonify({"success": True, "direct_url": res["url"]})
-    except Exception as e:
-        return jsonify({"success": False, "error": "Servers are busy. Try again!"})
+    apis = [
+        "https://api.cobalt.tools/api/json",
+        "https://co.wuk.sh/api/json",
+        "https://cobalt.qewertyy.dev/api/json"
+    ]
 
-    return jsonify({"success": False, "error": "Could not extract fast link."})
+    for api in apis:
+        try:
+            req = urllib.request.Request(api, data=payload, headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as response:
+                res = json.loads(response.read().decode())
+                if "url" in res:
+                    return jsonify({"success": True, "direct_url": res["url"]})
+        except:
+            continue 
+
+    return jsonify({"success": False, "error": "All fast servers are currently busy. Try again!"})
 
 if __name__ == '__main__':
-    print("🚀 Indrajeet Fast Backend Ready!")
+    print("🚀 Indrajeet Ultra-Fast Backend is Running!")
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), use_reloader=False)
