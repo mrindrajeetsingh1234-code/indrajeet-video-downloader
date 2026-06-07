@@ -1,5 +1,4 @@
 Flask
-yt-dlp
 Flask-Cors
+yt-dlp
 gunicorn
-requests
