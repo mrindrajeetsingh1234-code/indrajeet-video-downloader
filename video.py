@@ -5,11 +5,9 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# API ki list (Backup logic)
 APIS = [
     "https://api.cobalt.tools/api/json",
-    "https://co.wuk.sh/api/json",
-    "https://cobalt.qewertyy.dev/api/json"
+    "https://co.wuk.sh/api/json"
 ]
 
 @app.route('/check_info', methods=['POST'])
@@ -17,15 +15,16 @@ def check_info():
     url = request.json.get('url')
     if not url: return jsonify({"success": False})
 
-    # Sabhi APIs ko line se try karega
     for api in APIS:
         try:
+            # Cobalt/Wuk API का फॉर्मेट JSON होता है
             resp = requests.post(api, json={"url": url}, timeout=5)
             if resp.status_code == 200:
                 data = resp.json()
+                # यहाँ 'filename' को 'title' में मैप करना जरूरी है
                 return jsonify({
                     "success": True,
-                    "title": data.get("filename") or "YouTube Video",
+                    "title": data.get("filename") or data.get("title") or "Video",
                     "thumb": data.get("thumbnail") or "",
                     "qualities": ["1080p", "720p", "480p", "Audio (MP3)"]
                 })
@@ -44,10 +43,9 @@ def download_video():
         "isAudioOnly": 'Audio' in quality or 'MP3' in quality
     }
 
-    # Auto-Switching logic
     for api in APIS:
         try:
-            resp = requests.post(api, json=payload, timeout=7)
+            resp = requests.post(api, json=payload, timeout=10)
             if resp.status_code == 200:
                 data = resp.json()
                 if "url" in data:
