@@ -1,5 +1,6 @@
 import os
-import re
+import urllib.request
+import json
 import yt_dlp
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
@@ -8,8 +9,7 @@ app = Flask(__name__)
 CORS(app)
 
 DOWNLOAD_FOLDER = os.path.abspath("downloads")
-if not os.path.exists(DOWNLOAD_FOLDER):
-    os.makedirs(DOWNLOAD_FOLDER)
+os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
 @app.route('/', methods=['GET'])
 def index():
@@ -23,9 +23,25 @@ def check_info():
 
     try:
         ydl_opts = {
-            'quiet': True, 'no_warnings': True, 'nocheckcertificate': True, 'geo_bypass': True,
-            'extractor_args': {'youtube': ['player_client=android,web']}
+            'quiet': True, 
+            'no_warnings': True, 
+            'nocheckcertificate': True, 
+            'geo_bypass': True,
+            'noplaylist': True,           # 🚀 Speed Boost 1: प्लेलिस्ट स्कैन नहीं करेगा
+            'extract_flat': 'in_playlist',# 🚀 Speed Boost 2: फालतू डेटा इग्नोर करेगा
+            'extractor_args': {
+                # 🔥 YouTube Bypass: YouTube को लगेगा कि रिक्वेस्ट मोबाइल या स्मार्ट टीवी से आ रही है
+                'youtube': ['player_client=ios,android,tv,web']
+            },
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
         }
+
+        # 🍪 अगर आपने cookies.txt फाइल बनाई है, तो यह ऑटोमैटिक उसे यूज़ कर लेगा (बिना क्रैश हुए)
+        if os.path.exists("cookies.txt"):
+            ydl_opts['cookiefile'] = 'cookies.txt'
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             title = info.get('title', 'Unknown Title')
@@ -58,10 +74,24 @@ def download_video():
     try:
         ydl_opts = {
             'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
-            'quiet': True, 'nocheckcertificate': True, 'geo_bypass': True,
-            'concurrent_fragment_downloads': 5,
-            'extractor_args': {'youtube': ['player_client=android,web']}
+            'quiet': True, 
+            'nocheckcertificate': True, 
+            'geo_bypass': True,
+            'noplaylist': True,
+            'concurrent_fragment_downloads': 10, # 🚀 SUPER SPEED: 20 मिनट की वीडियो को 10 हिस्सों में एक साथ डाउनलोड करेगा!
+            'retries': 5, # अगर इंटरनेट बीच में कटा, तो फेल नहीं होगा, 5 बार दोबारा कोशिश करेगा
+            'extractor_args': {
+                'youtube': ['player_client=ios,android,tv,web']
+            },
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
         }
+
+        # 🍪 ऑटोमैटिक कुकीज़ डिटेक्शन
+        if os.path.exists("cookies.txt"):
+            ydl_opts['cookiefile'] = 'cookies.txt'
+
         if 'Audio' in quality or 'MP3' in quality:
             ydl_opts['format'] = 'bestaudio/best'
             ydl_opts['postprocessors'] = [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}]
@@ -73,11 +103,12 @@ def download_video():
             info = ydl.extract_info(url, download=True)
             final_file = ydl.prepare_filename(info)
             if 'Audio' in quality or 'MP3' in quality: final_file = os.path.splitext(final_file)[0] + '.mp3'
+        
         return jsonify({"success": True, "filename": os.path.basename(final_file)})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
-# 🔥 YOUTUBE SPECIAL BOX BYPASS (CORS KILLER) 🔥
+# 🔥 YOUTUBE & TIKTOK SPECIAL BOX BYPASS (CORS KILLER) 🔥
 @app.route('/cobalt_bypass', methods=['POST'])
 def cobalt_bypass():
     data = request.json
@@ -85,7 +116,6 @@ def cobalt_bypass():
     if not url: return jsonify({"success": False, "error": "No URL"})
     
     try:
-        import urllib.request, json
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
         payload = json.dumps({"url": url, "vQuality": "1080", "isAudioOnly": False, "aFormat": "mp3"}).encode('utf-8')
         
@@ -112,4 +142,5 @@ def fetch_file(filename):
     return send_file(os.path.join(DOWNLOAD_FOLDER, filename), as_attachment=True)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    print("🚀 Indrajeet SPEED Backend is Running on http://0.0.0.0:5000")
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), use_reloader=False)
