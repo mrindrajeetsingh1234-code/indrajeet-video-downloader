@@ -27,10 +27,11 @@ def check_info():
             'no_warnings': True, 
             'nocheckcertificate': True, 
             'geo_bypass': True,
-            'noplaylist': True,           # 🚀 Speed Boost 1: प्लेलिस्ट स्कैन नहीं करेगा
-            'extract_flat': 'in_playlist',# 🚀 Speed Boost 2: फालतू डेटा इग्नोर करेगा
+            'noplaylist': True,           
+            'extract_flat': 'in_playlist',
+            # 🔥 सबसे बड़ा हथियार: यह आपके असली Chrome ब्राउज़र से कुकीज़ खुद निकाल लेगा!
+            'cookiesfrombrowser': ('chrome',), 
             'extractor_args': {
-                # 🔥 YouTube Bypass: YouTube को लगेगा कि रिक्वेस्ट मोबाइल या स्मार्ट टीवी से आ रही है
                 'youtube': ['player_client=ios,android,tv,web']
             },
             'http_headers': {
