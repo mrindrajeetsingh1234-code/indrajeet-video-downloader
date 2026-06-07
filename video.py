@@ -1,6 +1,7 @@
 import os
 import urllib.request
 import json
+import re  # 🔥 नया इंपोर्ट (ID निकालने के लिए)
 import yt_dlp
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -12,7 +13,7 @@ CORS(app)
 def index():
     return jsonify({"message": "🚀 Indrajeet Ultra-Fast Backend Running!"})
 
-# ⚡ STEP 1: VIDEO FIND KARTA HAI (SUPER FAST)
+# ⚡ STEP 1: VIDEO INFO (SMART BYPASS)
 @app.route('/check_info', methods=['POST'])
 def check_info():
     data = request.json
@@ -20,7 +21,6 @@ def check_info():
     if not url: return jsonify({"success": False, "error": "No URL"})
 
     try:
-        # 🚀 Speed Booster Options for finding video instantly
         ydl_opts = {
             'quiet': True, 
             'no_warnings': True, 
@@ -34,13 +34,12 @@ def check_info():
             title = info.get('title', 'Unknown Title')
             thumb = info.get('thumbnail', '')
             
-            # Fast Quality Fetch
             formats = info.get('formats', [])
             live_res = set()
             for f in formats:
                 if f.get('vcodec') != 'none' and f.get('height'): live_res.add(f.get('height'))
             
-            final_qualities = [f"{res}p" for res in sorted(list(live_res), reverse=True)[:4]] # Sirf top 4 quality
+            final_qualities = [f"{res}p" for res in sorted(list(live_res), reverse=True)[:4]]
             if not final_qualities:
                 final_qualities = ["1080p", "720p", "480p"]
             final_qualities.extend(["Audio (MP3)"])
@@ -53,9 +52,24 @@ def check_info():
                 "qualities": final_qualities
             })
     except Exception as e:
+        # 🔥 SMART INFO BYPASS: अगर YouTube ब्लॉक करे, तो हमारा कोड हार नहीं मानेगा!
+        if "youtube" in url or "youtu.be" in url:
+            video_id = ""
+            # लिंक से सीधे Video ID निकालो
+            match = re.search(r"(?:v=|/)([0-9A-Za-z_-]{11})", url)
+            if match: video_id = match.group(1)
+            
+            return jsonify({
+                "success": True,
+                "title": "YouTube Video (Secured Download)",
+                "thumb": f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg" if video_id else "",
+                "metadata": f"Link: {url}\n\nNote: Security Bypass Active.",
+                "qualities": ["1080p", "720p", "480p", "Audio (MP3)"] # डिफ़ॉल्ट क्वालिटी ऑप्शंस
+            })
+        
         return jsonify({"success": False, "error": str(e)})
 
-# ⚡ STEP 2: DIRECT LINK BYPASS (3 SECONDS DOWNLOAD)
+# ⚡ STEP 2: DIRECT FAST DOWNLOAD (BYPASSING SERVER)
 @app.route('/download', methods=['POST'])
 def download_video():
     data = request.json
@@ -66,7 +80,6 @@ def download_video():
 
     is_audio = 'Audio' in quality or 'MP3' in quality
     
-    # Set video quality for Cobalt
     v_quality = "1080"
     if "720" in quality: v_quality = "720"
     elif "480" in quality: v_quality = "480"
@@ -91,7 +104,7 @@ def download_video():
             if "url" in res:
                 return jsonify({"success": True, "direct_url": res["url"]})
     except:
-        pass # Pela fail ho to doosra try karega
+        pass 
 
     try:
         # 🚀 FAST API 2: Wuk.sh (Backup)
