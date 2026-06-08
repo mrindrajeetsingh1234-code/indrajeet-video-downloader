@@ -6,31 +6,29 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# 🚀 परमानेंट yt-dlp सेटिंग्स (बिना किसी API के)
 def get_ydl_opts():
     opts = {
         'quiet': True,
         'no_warnings': True,
         'noplaylist': True,
-        'format': 'best',
+        # 🚀 SPEED FIX: यह हमेशा MP4 फॉर्मेट और सबसे बेस्ट क्वालिटी उठाएगा
+        'format': 'best[ext=mp4]/best', 
         'nocheckcertificate': True,
         'geo-bypass': True,
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+            'Accept': '*/*'
         }
     }
-    # अगर आपने cookies.txt फाइल डाली है, तो यह खुद उसे इस्तेमाल कर लेगा
     if os.path.exists('cookies.txt'):
         opts['cookiefile'] = 'cookies.txt'
     return opts
 
 @app.route('/')
 def index():
-    # आपकी वेबसाइट दिखाने के लिए
     if os.path.exists('index.html'):
         return send_from_directory('.', 'index.html')
-    return "Backend is running permanently! Please add index.html to your folder."
+    return "Backend is running!"
 
 @app.route('/check_info', methods=['POST'])
 def check_info():
@@ -40,11 +38,19 @@ def check_info():
     try:
         with yt_dlp.YoutubeDL(get_ydl_opts()) as ydl:
             info = ydl.extract_info(url, download=False)
+            
+            # 🚀 THUMBNAIL FIX: सबसे हाई क्वालिटी का थंबनेल निकालने का लॉजिक
+            thumb_url = ""
+            if 'thumbnails' in info and len(info['thumbnails']) > 0:
+                thumb_url = info['thumbnails'][-1]['url'] # लिस्ट का आखिरी थंबनेल सबसे HD होता है
+            elif info.get('thumbnail'):
+                thumb_url = info.get('thumbnail')
+            
             return jsonify({
                 "success": True,
                 "title": info.get('title', 'Video'),
-                "thumb": info.get('thumbnail', ''),
-                "qualities": ["Best Quality"]
+                "thumb": thumb_url,
+                "qualities": ["High Quality (MP4)"]
             })
     except Exception as e:
         return jsonify({"success": False, "error": "Cannot fetch video info. It might be private or protected."})
@@ -58,13 +64,12 @@ def download_video():
         with yt_dlp.YoutubeDL(get_ydl_opts()) as ydl:
             info = ydl.extract_info(url, download=False)
             
-            # सिर्फ डायरेक्ट लिंक निकाल रहा है, ताकि सर्वर पर लोड न पड़े
             video_url = info.get('url') or (info.get('formats')[-1]['url'] if 'formats' in info else None)
             
             if video_url:
                 return jsonify({"success": True, "direct_url": video_url})
             else:
-                return jsonify({"success": False, "error": "Direct download link not found."})
+                return jsonify({"success": False, "error": "Direct link not found."})
     except Exception as e:
         return jsonify({"success": False, "error": "Platform blocked the download. Try another video."})
 
