@@ -1,28 +1,46 @@
+import os
 import yt_dlp
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
-# इसमें हमने एक बहुत ही बेसिक 'User-Agent' रोटेशन और 'Proxy' लगाने का रास्ता छोड़ दिया है
-def get_ydl_opts():
-    return {
-        'quiet': True,
-        'format': 'best',
-        'nocheckcertificate': True,
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-    }
+@app.route('/')
+def index():
+    return send_from_directory('.', 'index.html')
+
+# 🚀 /keep-alive: सर्वर को जगाने के लिए एक छोटा सा एंडपॉइंट
+@app.route('/keep-alive', methods=['GET'])
+def keep_alive():
+    return "I am awake!", 200
+
+@app.route('/check_info', methods=['POST'])
+def check_info():
+    url = request.json.get('url')
+    try:
+        ydl_opts = {'quiet': True, 'extractor_args': {'youtube': ['player_client=android']}}
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            return jsonify({
+                "success": True, 
+                "title": info.get('title'), 
+                "thumb": info.get('thumbnail')
+            })
+    except Exception as e:
+        return jsonify({"success": False, "error": "Invalid Link"})
 
 @app.route('/download', methods=['POST'])
 def download():
     url = request.json.get('url')
     try:
-        with yt_dlp.YoutubeDL(get_ydl_opts()) as ydl:
-            # यह कमांड सर्वर को 'इंसान' दिखाने के लिए है
+        ydl_opts = {'quiet': True, 'format': 'best', 'extractor_args': {'youtube': ['player_client=android']}}
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             link = info.get('url') or info.get('formats')[-1]['url']
             return jsonify({"success": True, "direct_url": link})
     except Exception as e:
-        return jsonify({"success": False, "error": "IP Blocked by Instagram."})
+        return jsonify({"success": False, "error": "Protected Link"})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
