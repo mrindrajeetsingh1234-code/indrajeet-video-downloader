@@ -1,5 +1,6 @@
 import os
 import yt_dlp
+import requests
 from flask import Flask, request, jsonify, send_from_directory, make_response
 from flask_cors import CORS
 
@@ -15,7 +16,6 @@ def get_opts():
         'no_warnings': True,
         'nocheckcertificate': True,
         'geo_bypass': True,
-        # 🔥 Pinterest और बाकी प्लेटफॉर्म्स के लिए बेस्ट फॉर्मेट सेटिंग
         'format': 'bestvideo+bestaudio/best/all',
         'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
         'http_headers': {
@@ -25,6 +25,20 @@ def get_opts():
         }
     }
 
+# 🚀 NEW: Instagram Thumbnail Bypass Proxy
+@app.route('/proxy_thumb')
+def proxy_thumb():
+    img_url = request.args.get('url')
+    if not img_url: return "", 400
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        r = requests.get(img_url, headers=headers, timeout=10)
+        response = make_response(r.content)
+        response.headers['Content-Type'] = r.headers.get('Content-Type', 'image/jpeg')
+        return response
+    except:
+        return "", 500
+
 @app.route('/check_info', methods=['POST'])
 def check_info():
     url = request.json.get('url')
@@ -33,10 +47,8 @@ def check_info():
     try:
         with yt_dlp.YoutubeDL(get_opts()) as ydl:
             info = ydl.extract_info(url, download=False)
-            
             title = info.get('title') or info.get('description') or 'Video Ready for Download'
             
-            # 🔥 थंबनेल निकालने का पक्का तरीका
             thumb = info.get('thumbnail')
             if not thumb and info.get('thumbnails'):
                 thumb = info['thumbnails'][-1]['url']
@@ -48,10 +60,7 @@ def check_info():
             
             return jsonify({"success": True, "title": title, "thumb": thumb, "qualities": qualities})
     except Exception as e:
-        error_msg = str(e)
-        if "cookies" in error_msg.lower():
-            return jsonify({"success": False, "error": "इस प्लेटफॉर्म के लिए Server पर Cookies की ज़रूरत है।"})
-        return jsonify({"success": False, "error": error_msg})
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route('/download', methods=['POST'])
 def download():
