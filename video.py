@@ -9,18 +9,19 @@ CORS(app)
 DOWNLOAD_FOLDER = "downloads"
 if not os.path.exists(DOWNLOAD_FOLDER): os.makedirs(DOWNLOAD_FOLDER)
 
-# 🚀 सबसे सेफ सेटिंग्स (जिसे कोई प्लेटफार्म ब्लॉक नहीं करता)
 def get_opts():
     return {
         'quiet': True,
         'no_warnings': True,
         'nocheckcertificate': True,
         'geo_bypass': True,
-        'format': 'best',
+        # 🔥 Pinterest और बाकी प्लेटफॉर्म्स के लिए बेस्ट फॉर्मेट सेटिंग
+        'format': 'bestvideo+bestaudio/best/all',
         'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
             'Accept-Language': 'en-US,en;q=0.9',
+            'Accept': '*/*'
         }
     }
 
@@ -34,6 +35,8 @@ def check_info():
             info = ydl.extract_info(url, download=False)
             
             title = info.get('title') or info.get('description') or 'Video Ready for Download'
+            
+            # 🔥 थंबनेल निकालने का पक्का तरीका
             thumb = info.get('thumbnail')
             if not thumb and info.get('thumbnails'):
                 thumb = info['thumbnails'][-1]['url']
@@ -45,8 +48,10 @@ def check_info():
             
             return jsonify({"success": True, "title": title, "thumb": thumb, "qualities": qualities})
     except Exception as e:
-        # 🔥 अब यह असली एरर दिखाएगा ताकि हमें पता चले कि दिक्कत क्या है
-        return jsonify({"success": False, "error": str(e)})
+        error_msg = str(e)
+        if "cookies" in error_msg.lower():
+            return jsonify({"success": False, "error": "इस प्लेटफॉर्म के लिए Server पर Cookies की ज़रूरत है।"})
+        return jsonify({"success": False, "error": error_msg})
 
 @app.route('/download', methods=['POST'])
 def download():
