@@ -6,23 +6,25 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
+# 🚀 No-Cookie, High-Stealth yt-dlp Settings
 def get_ydl_opts():
-    opts = {
+    return {
         'quiet': True,
         'no_warnings': True,
         'noplaylist': True,
-        # 🚀 SPEED FIX: यह हमेशा MP4 फॉर्मेट और सबसे बेस्ट क्वालिटी उठाएगा
-        'format': 'best[ext=mp4]/best', 
+        'format': 'best[ext=mp4]/best', # हमेशा MP4 निकालने की कोशिश करेगा
         'nocheckcertificate': True,
         'geo-bypass': True,
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-            'Accept': '*/*'
+            # iPhone का User-Agent ताकि सर्वर को लगे कि असली इंसान है
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
         }
     }
-    if os.path.exists('cookies.txt'):
-        opts['cookiefile'] = 'cookies.txt'
-    return opts
 
 @app.route('/')
 def index():
@@ -39,10 +41,10 @@ def check_info():
         with yt_dlp.YoutubeDL(get_ydl_opts()) as ydl:
             info = ydl.extract_info(url, download=False)
             
-            # 🚀 THUMBNAIL FIX: सबसे हाई क्वालिटी का थंबनेल निकालने का लॉजिक
+            # Thumbnail Logic
             thumb_url = ""
             if 'thumbnails' in info and len(info['thumbnails']) > 0:
-                thumb_url = info['thumbnails'][-1]['url'] # लिस्ट का आखिरी थंबनेल सबसे HD होता है
+                thumb_url = info['thumbnails'][-1]['url']
             elif info.get('thumbnail'):
                 thumb_url = info.get('thumbnail')
             
@@ -50,10 +52,10 @@ def check_info():
                 "success": True,
                 "title": info.get('title', 'Video'),
                 "thumb": thumb_url,
-                "qualities": ["High Quality (MP4)"]
+                "qualities": ["Best Quality (MP4)"]
             })
     except Exception as e:
-        return jsonify({"success": False, "error": "Cannot fetch video info. It might be private or protected."})
+        return jsonify({"success": False, "error": "Info failed. Platform blocked the request."})
 
 @app.route('/download', methods=['POST'])
 def download_video():
@@ -71,7 +73,7 @@ def download_video():
             else:
                 return jsonify({"success": False, "error": "Direct link not found."})
     except Exception as e:
-        return jsonify({"success": False, "error": "Platform blocked the download. Try another video."})
+        return jsonify({"success": False, "error": "Download blocked by platform. Try another public video."})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
