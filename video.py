@@ -1,6 +1,6 @@
 import os
 import yt_dlp
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, make_response
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -8,15 +8,6 @@ CORS(app)
 
 DOWNLOAD_FOLDER = "downloads"
 if not os.path.exists(DOWNLOAD_FOLDER): os.makedirs(DOWNLOAD_FOLDER)
-
-def get_opts():
-    return {
-        'quiet': True,
-        'no_warnings': True,
-        'format': 'best',
-        'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
-        'http_headers': {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'}
-    }
 
 @app.route('/check_info', methods=['POST'])
 def check_info():
@@ -27,24 +18,25 @@ def check_info():
             formats = info.get('formats', [])
             res = sorted(list(set([f.get('height') for f in formats if f.get('height')])), reverse=True)
             qualities = [f"{r}p" for r in res if r >= 360] or ["Best Quality"]
+            qualities.append("Audio (MP3)")
             return jsonify({"success": True, "title": info.get('title'), "thumb": info.get('thumbnail'), "qualities": qualities})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+    except: return jsonify({"success": False, "error": "Invalid Link"})
 
 @app.route('/download', methods=['POST'])
 def download():
     url = request.json.get('url')
     try:
-        with yt_dlp.YoutubeDL(get_opts()) as ydl:
+        ydl_opts = {'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'), 'format': 'best'}
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             return jsonify({"success": True, "filename": os.path.basename(ydl.prepare_filename(info))})
-    except Exception as e:
-        return jsonify({"success": False, "error": "Server Busy"})
+    except: return jsonify({"success": False, "error": "Server Busy"})
 
 @app.route('/files/<filename>')
 def serve_file(filename):
-    # as_attachment=True se file download hogi, play nahi hogi
-    return send_from_directory(DOWNLOAD_FOLDER, filename, as_attachment=True)
+    response = make_response(send_from_directory(DOWNLOAD_FOLDER, filename))
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    return response
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, threaded=True)
