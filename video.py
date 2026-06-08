@@ -1,46 +1,28 @@
-import os
-import yt_dlp
+import requests
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-@app.route('/')
-def index():
-    return send_from_directory('.', 'index.html')
-
-# 🚀 /keep-alive: सर्वर को जगाने के लिए एक छोटा सा एंडपॉइंट
-@app.route('/keep-alive', methods=['GET'])
-def keep_alive():
-    return "I am awake!", 200
-
-@app.route('/check_info', methods=['POST'])
-def check_info():
-    url = request.json.get('url')
-    try:
-        ydl_opts = {'quiet': True, 'extractor_args': {'youtube': ['player_client=android']}}
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            return jsonify({
-                "success": True, 
-                "title": info.get('title'), 
-                "thumb": info.get('thumbnail')
-            })
-    except Exception as e:
-        return jsonify({"success": False, "error": "Invalid Link"})
+# 3 अलग-अलग APIs का पूल (अगर एक बिजी है, तो दूसरी काम करेगी)
+APIS = [
+    "https://api.cobalt.tools/api/json", 
+    "https://snap-save.com/api/v1/download",
+]
 
 @app.route('/download', methods=['POST'])
 def download():
     url = request.json.get('url')
-    try:
-        ydl_opts = {'quiet': True, 'format': 'best', 'extractor_args': {'youtube': ['player_client=android']}}
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            link = info.get('url') or info.get('formats')[-1]['url']
-            return jsonify({"success": True, "direct_url": link})
-    except Exception as e:
-        return jsonify({"success": False, "error": "Protected Link"})
+    # रोटेशन लॉजिक: एक बार API-1 से पूछो, फेल हो तो API-2 से
+    for api_url in APIS:
+        try:
+            response = requests.post(api_url, json={"url": url}, timeout=10)
+            if response.status_code == 200:
+                return jsonify({"success": True, "direct_url": response.json().get('url')})
+        except:
+            continue
+    return jsonify({"success": False, "error": "All APIs are busy. Try again."})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
