@@ -9,6 +9,7 @@ CORS(app)
 DOWNLOAD_FOLDER = "downloads"
 if not os.path.exists(DOWNLOAD_FOLDER): os.makedirs(DOWNLOAD_FOLDER)
 
+# 🚀 सबसे सेफ सेटिंग्स (जिसे कोई प्लेटफार्म ब्लॉक नहीं करता)
 def get_opts():
     return {
         'quiet': True,
@@ -18,8 +19,8 @@ def get_opts():
         'format': 'best',
         'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
         }
     }
 
@@ -44,7 +45,8 @@ def check_info():
             
             return jsonify({"success": True, "title": title, "thumb": thumb, "qualities": qualities})
     except Exception as e:
-        return jsonify({"success": False, "error": "Link Protected or Server Busy."})
+        # 🔥 अब यह असली एरर दिखाएगा ताकि हमें पता चले कि दिक्कत क्या है
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route('/download', methods=['POST'])
 def download():
@@ -55,7 +57,7 @@ def download():
             filename = os.path.basename(ydl.prepare_filename(info))
             return jsonify({"success": True, "filename": filename})
     except Exception as e:
-        return jsonify({"success": False, "error": "Download blocked by platform."})
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route('/files/<filename>')
 def serve_file(filename):
