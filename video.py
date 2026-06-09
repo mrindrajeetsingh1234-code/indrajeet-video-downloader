@@ -17,7 +17,11 @@ def get_opts():
         'nocheckcertificate': True,
         'geo_bypass': True,
         'format': 'bestvideo+bestaudio/best/all',
-        'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(title)s.%(ext)s'),
+        
+        # 🔥 FIX: यह लाइन किसी भी स्पेशल कैरेक्टर, इमोजी या चाइनीज़ टेक्स्ट को URL ब्लॉक करने से रोकेगी
+        'outtmpl': os.path.join(DOWNLOAD_FOLDER, 'IVD_%(id)s.%(ext)s'),
+        'restrictfilenames': True, 
+        
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
             'Accept-Language': 'en-US,en;q=0.9',
@@ -25,7 +29,6 @@ def get_opts():
         }
     }
 
-# 🚀 NEW: Instagram Thumbnail Bypass Proxy
 @app.route('/proxy_thumb')
 def proxy_thumb():
     img_url = request.args.get('url')
@@ -60,7 +63,10 @@ def check_info():
             
             return jsonify({"success": True, "title": title, "thumb": thumb, "qualities": qualities})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        error_msg = str(e)
+        if "cookies" in error_msg.lower():
+            return jsonify({"success": False, "error": "इस प्लेटफॉर्म के लिए Server पर Cookies की ज़रूरत है।"})
+        return jsonify({"success": False, "error": error_msg})
 
 @app.route('/download', methods=['POST'])
 def download():
